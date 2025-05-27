@@ -1,6 +1,5 @@
 import csv
 import subprocess
-import tempfile
 import os
 import librosa
 import soundfile as sf

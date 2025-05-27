@@ -151,68 +151,40 @@ class F5TTS:
         predicted_speed = speed_1 + (limit_duration - duration_1) * (speed_2 - speed_1) / (duration_2 - duration_1)
         return predicted_speed
 
-    def generate_from_csv(self, csv_file, output_folder, ref_file, ref_text, rewrite=False):
-        os.makedirs(output_folder, exist_ok=True)
+    def infer_wav(self, gen_text, speed, ref_file, ref_text):
+        wav, sr = self.infer(
+            ref_file=ref_file,
+            ref_text=ref_text,
+            gen_text=gen_text,
+            speed=speed,
+            show_info=print,
+            progress=tqdm,
+            fix_duration=None
+        )
+        return wav, sr, len(wav) / sr 
 
-        with open(csv_file, 'r', encoding='utf-8') as csvfile:
-            reader = csv.DictReader(csvfile)
-            generated_segments = []
-            for i, row in enumerate(reader):
-                file_wave = os.path.join(output_folder, f"segment_{i + 1}.wav")
-                if not rewrite and os.path.exists(file_wave):
-                    continue
-                gen_text = row['Text']
-                previous_speed = float(row.get('speed_tts_closest', 1.0))  # Read the speed from `speed_tts_closest`, default to 1.0 if missing
+    def generate_wav_if_longer(self, wav, sr, gen_text, duration, previous_duration, previous_speed, ref_file, ref_text, i):
+        while duration < previous_duration:  
+            print(f"duration < duration_seconds_tts = {duration} < {previous_duration}")
+            next_speed = previous_speed + 0.1
+            wav, sr,next_duration = self.infer_wav(gen_text, next_speed, ref_file, ref_text)
 
+            predict_linear_speed = self.linear_predict(previous_speed, previous_duration, next_speed, next_duration, duration)
+            if predict_linear_speed-previous_speed > 0.1:  # if jump is less then 0.1 speed make speed just +0.1speed
+                next_speed = predict_linear_speed
+                print(f"Let`s regenerate {i}-fragment with speed = {next_speed}")
                 wav, sr = self.infer(
                     ref_file=ref_file,
                     ref_text=ref_text,
                     gen_text=gen_text,
-                    speed=previous_speed,
+                    speed=next_speed,
                     fix_duration=None,
                     # file_wave=file_wave
                 )
-
-                previous_duration = len(wav) / sr
-                duration = float(row['Duration'])
-
-                while duration < previous_duration:  # the fidelity must be at least x second
-                    print(f"duration < duration_seconds_tts = {duration} < {previous_duration}")
-                    next_speed = previous_speed + 0.1
-                    wav, sr = self.infer(
-                        ref_file=ref_file,
-                        ref_text=ref_text,
-                        gen_text=gen_text,
-                        speed=next_speed,
-                        fix_duration=None,
-                        # file_wave=file_wave
-                    )
-                    next_duration = len(wav) / sr
-
-                    predict_linear_speed = self.linear_predict(previous_speed, previous_duration, next_speed, next_duration, duration)
-                    if predict_linear_speed-previous_speed > 0.1:  # if jump is less then 0.1 speed make speed just +0.1speed
-                        next_speed = predict_linear_speed
-                        print(f"Let`s regenerate {i}-fragment with speed = {next_speed}")
-                        wav, sr = self.infer(
-                            ref_file=ref_file,
-                            ref_text=ref_text,
-                            gen_text=gen_text,
-                            speed=next_speed,
-                            fix_duration=None,
-                            # file_wave=file_wave
-                        )
-                    previous_duration = len(wav) / sr
-                    previous_speed = next_speed
-                generated_segments.append((wav, file_wave, sr))
-                print(f"Generated WAV-{i} with symbol duration {len(wav) / sr / len(gen_text)}, and speed = {next_speed}")
-
-                # print(f"Generated WAV with speed {speed} saved as {file_wave}")
-            for wav, file_wave, sr in generated_segments:
-                # self.export_wav(wav, file_wave)
-                sf.write(file_wave, wav, sr)
-                print(f"Saved WAV as {file_wave}")
-
-        print(f"All audio segments generated and saved in {output_folder}")
+            previous_duration = len(wav) / sr
+            previous_speed = next_speed
+        return wav, sr
+        
 
     def generate_from_csv_with_speakers(self, csv_file, output_folder, speakers, default_speaker, rewrite=False):
         os.makedirs(output_folder, exist_ok=True)
@@ -224,6 +196,7 @@ class F5TTS:
                 file_wave = os.path.join(output_folder, f"segment_{i + 1}.wav")
                 if not rewrite and os.path.exists(file_wave):
                     continue
+                duration = float(row['Duration'])
                 gen_text = row['Text']
                 previous_speed = float(row.get('TTS Speed Closest', 1.0))  # Read the speed from `speed_tts_closest`, default to 1.0 if missing
 
@@ -236,51 +209,11 @@ class F5TTS:
                     ref_text = default_speaker["ref_text"]
                     ref_file = default_speaker["ref_file"]
 
-                wav, sr = self.infer(
-                    ref_file=ref_file,
-                    ref_text=ref_text,
-                    gen_text=gen_text,
-                    speed=previous_speed,
-                    fix_duration=None,
-                    # file_wave=file_wave
-                )
-
-                previous_duration = len(wav) / sr
-                duration = float(row['Duration'])
-
-                while duration < previous_duration:  # the fidelity must be at least x second
-                    print(f"duration < duration_seconds_tts = {duration} < {previous_duration}")
-                    next_speed = previous_speed + 0.1
-                    wav, sr = self.infer(
-                        ref_file=ref_file,
-                        ref_text=ref_text,
-                        gen_text=gen_text,
-                        speed=next_speed,
-                        fix_duration=None,
-                        # file_wave=file_wave
-                    )
-                    next_duration = len(wav) / sr
-
-                    predict_linear_speed = self.linear_predict(previous_speed, previous_duration, next_speed, next_duration, duration)
-                    if predict_linear_speed-previous_speed > 0.1:  # if jump is less then 0.1 speed make speed just +0.1speed
-                        next_speed = predict_linear_speed
-                        print(f"Let`s regenerate {i}-fragment with speed = {next_speed}")
-                        wav, sr = self.infer(
-                            ref_file=ref_file,
-                            ref_text=ref_text,
-                            gen_text=gen_text,
-                            speed=next_speed,
-                            fix_duration=None,
-                            # file_wave=file_wave
-                        )
-                    previous_duration = len(wav) / sr
-                    previous_speed = next_speed
-                generated_segments.append((wav, file_wave, sr))
+                wav, sr, previous_duration = self.infer_wav(gen_text, previous_speed, ref_file, ref_text)
+                wav, sr = self.generate_wav_if_longer(wav, sr, gen_text, duration, previous_duration, previous_speed, ref_file, ref_text, i)
                 print(f"Generated WAV-{i} with symbol duration {len(wav) / sr / len(gen_text)}")
-
-                # print(f"Generated WAV with speed {speed} saved as {file_wave}")
+                generated_segments.append((wav, file_wave, sr)) 
             for wav, file_wave, sr in generated_segments:
-                # self.export_wav(wav, file_wave)
                 sf.write(file_wave, wav, sr)
                 print(f"Saved WAV as {file_wave}")
 
@@ -311,25 +244,65 @@ class F5TTS:
         print(f"CSV file generated and saved as {output_csv}")
 
 
-# Example usage
-if __name__ == "__main__":
-    f5tts = F5TTS()
-    f5tts.generate_speeds_csv(
-        "speeds_lex.csv",
-        "There was truth and there was untruth, and if you clung to the truth even against the whole world, you were not mad. Nineteen Eighty-Four by George Orwell is one of the most impactful books ever written.",
-        "orwell_lex_14s.wav"
-    )
+# def generate_from_csv(self, csv_file, output_folder, ref_file, ref_text, rewrite=False):
+    #     os.makedirs(output_folder, exist_ok=True)
 
-    # Define input files and parameters
-    # srt_file = "2_chkd.srt"
-    # csv_file = "output_speed.csv"
-    # ref_file = str(files("f5_tts").joinpath("infer/examples/basic/basic_ref_en.wav"))
-    # ref_text = "some call me nature, others call me mother nature."
+    #     with open(csv_file, 'r', encoding='utf-8') as csvfile:
+    #         reader = csv.DictReader(csvfile)
+    #         generated_segments = []
+    #         for i, row in enumerate(reader):
+    #             file_wave = os.path.join(output_folder, f"segment_{i + 1}.wav")
+    #             if not rewrite and os.path.exists(file_wave):
+    #                 continue
+    #             gen_text = row['Text']
+    #             previous_speed = float(row.get('speed_tts_closest', 1.0))  # Read the speed from `speed_tts_closest`, default to 1.0 if missing
 
-    # Generate audio from CSV with varying speeds based on `speed_tts_closest`
-    # output_folder = os.path.splitext(srt_file)[0]
-    # f5tts.generate_from_csv(csv_file, output_folder, ref_file, ref_text)
+    #             wav, sr = self.infer(
+    #                 ref_file=ref_file,
+    #                 ref_text=ref_text,
+    #                 gen_text=gen_text,
+    #                 speed=previous_speed,
+    #                 fix_duration=None,
+    #                 # file_wave=file_wave
+    #             )
 
-    # Correct the times in the CSV with the actual durations of the generated fragments
-    # corrected_csv_file = "corrected_output_speed.csv"
-    # f5tts.correct_times_in_csv(output_folder, csv_file, corrected_csv_file)
+    #             previous_duration = len(wav) / sr
+    #             duration = float(row['Duration'])
+
+    #             while duration < previous_duration:  # the fidelity must be at least x second
+    #                 print(f"duration < duration_seconds_tts = {duration} < {previous_duration}")
+    #                 next_speed = previous_speed + 0.1
+    #                 wav, sr = self.infer(
+    #                     ref_file=ref_file,
+    #                     ref_text=ref_text,
+    #                     gen_text=gen_text,
+    #                     speed=next_speed,
+    #                     fix_duration=None,
+    #                     # file_wave=file_wave
+    #                 )
+    #                 next_duration = len(wav) / sr
+
+    #                 predict_linear_speed = self.linear_predict(previous_speed, previous_duration, next_speed, next_duration, duration)
+    #                 if predict_linear_speed-previous_speed > 0.1:  # if jump is less then 0.1 speed make speed just +0.1speed
+    #                     next_speed = predict_linear_speed
+    #                     print(f"Let`s regenerate {i}-fragment with speed = {next_speed}")
+    #                     wav, sr = self.infer(
+    #                         ref_file=ref_file,
+    #                         ref_text=ref_text,
+    #                         gen_text=gen_text,
+    #                         speed=next_speed,
+    #                         fix_duration=None,
+    #                         # file_wave=file_wave
+    #                     )
+    #                 previous_duration = len(wav) / sr
+    #                 previous_speed = next_speed
+    #             generated_segments.append((wav, file_wave, sr))
+    #             print(f"Generated WAV-{i} with symbol duration {len(wav) / sr / len(gen_text)}, and speed = {next_speed}")
+
+    #             # print(f"Generated WAV with speed {speed} saved as {file_wave}")
+    #         for wav, file_wave, sr in generated_segments:
+    #             # self.export_wav(wav, file_wave)
+    #             sf.write(file_wave, wav, sr)
+    #             print(f"Saved WAV as {file_wave}")
+
+    #     print(f"All audio segments generated and saved in {output_folder}")

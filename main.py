@@ -258,9 +258,6 @@ def main():
     outfileending = args.outfileending
     vocabular = args.vocabular
 
-
-
-
     print(f"Processing folder: {subtitle}")
 
     voice_dir = Path(subtitle)/"VOICE"
