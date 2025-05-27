@@ -4,7 +4,7 @@ import os
 import librosa
 import soundfile as sf
 import shutil
-
+import numpy as np
 
 # Read CSV file to get volume reduction time intervals
 def parse_volume_intervals(csv_file):
@@ -194,24 +194,6 @@ def create_ffmpeg_mix_audio_file_command_list(audio_file_1, audio_file_2, output
     ]
     return ffmpeg_command
 
-# Create the ffmpeg command to add a new audio track to a video, making the new audio the first track
-# def create_ffmpeg_add_audio_to_video_command(input_video, additional_audio, output_video):
-#     # Build the ffmpeg command to make the additional audio track as the first audio track
-#     ffmpeg_command = [
-#         "ffmpeg", "-y", "-i", input_video, "-i", additional_audio,
-#         "-map", "0:v",          # Map the original video stream
-#         "-map", "1:a",          # Map the additional audio stream as the first audio track
-#         "-map", "0:a",          # Map the original audio stream as the second audio track
-#         "-c:v", "copy",         # Copy the video stream without re-encoding
-#         "-c:a", "aac", "-b:a", "192k",  # Encode audio as AAC with a bitrate of 192kbps
-#         "-disposition:a:0", "default",  # Mark the additional (new) audio track as the default
-#         "-disposition:a:1", "0",        # Set the original audio track as not default
-#         output_video
-#     ]
-#
-#     return ffmpeg_command
-
-# Function to execute the ffmpeg command
 def run_ffmpeg_command(command):
     try:
         # Run the command using subprocess
