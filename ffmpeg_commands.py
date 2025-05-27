@@ -52,7 +52,7 @@ def time_to_seconds(time_str):
     hours, minutes, seconds = time_str.replace(",", ".").split(":")
     return float(hours) * 3600 + float(minutes) * 60 + float(seconds)
 
-def adjust_volume_with_librosa(input_audio, output_audio, volume_intervals, k_volume):
+def adjust_volume_with_librosa(input_audio, output_audio, volume_intervals, k_volume, transit_time=0.2):
     """
     Adjusts the volume of an audio file using librosa.
 
@@ -70,8 +70,28 @@ def adjust_volume_with_librosa(input_audio, output_audio, volume_intervals, k_vo
         start_sample = int(librosa.time_to_samples(float(start_time), sr=sr))
         end_sample = int(librosa.time_to_samples(float(end_time), sr=sr))
 
-        # Apply volume adjustment in the given range
-        y[start_sample:end_sample] *= k_volume
+        # Calculate sample indices for transition regions
+        transition_samples = int(librosa.time_to_samples(transit_time, sr=sr))  # 300ms transition
+        
+        # Create linear transition arrays
+        start_transition = np.linspace(1, k_volume, transition_samples)
+        end_transition = np.linspace(k_volume, 1, transition_samples)
+        
+        # Apply volume adjustment with transitions
+        if start_sample + transition_samples < end_sample:
+            # Apply full volume change in the middle
+            y[start_sample + transition_samples:end_sample - transition_samples] *= k_volume
+            
+            # Apply start transition
+            y[start_sample:start_sample + transition_samples] *= start_transition
+            
+            # Apply end transition
+            y[end_sample - transition_samples:end_sample] *= end_transition
+        else:
+            # If interval is too short for transitions, apply smooth curve
+            total_samples = end_sample - start_sample
+            transition = np.linspace(1, k_volume, total_samples)
+            y[start_sample:end_sample] *= transition
 
     # Save the modified audio
     sf.write(output_audio, y, sr)
