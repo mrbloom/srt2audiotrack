@@ -204,35 +204,6 @@ def run_ffmpeg_command(command):
         print("An error occurred while running FFmpeg:")
         # print(e.stderr.decode())
 
-def separate_and_extract_accompaniment(input_path, output_path,temp_dir: str,max_dur_sec=1800):
-    """
-    Runs spleeter to split `input_path` into vocals+accompaniment,
-    then moves only the accompaniment wav up to `output_dir` and
-    removes the temp folder.   
-    """
-    _, sr = librosa.load(input_path, sr=None)
-
-    # 1. Run the CLI separation
-    subprocess.run(
-        [
-            "spleeter", "separate",
-            "-p", "spleeter:2stems",
-            "-o", str(temp_dir),
-            "-b", str(sr),
-            "-d", str(max_dur_sec),
-            "--verbose",
-            input_path
-        ], check=True)
-
-    # 2. Compute where Spleeter put the files
-    base = os.path.splitext(os.path.basename(input_path))[0]
-    temp_folder = os.path.join(temp_dir, base)
-    acc_path = os.path.join(temp_folder, "accompaniment.wav")
-
-    # 3. Move accompaniment out and clean up
-    shutil.move(acc_path, output_path)
-    shutil.rmtree(temp_folder)
-
 
 if __name__ == "__main__":
     # Example usage

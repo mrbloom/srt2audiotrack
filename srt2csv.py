@@ -6,7 +6,7 @@ import csv
 import srt
 from datetime import timedelta
 
-DELAY = 0.00001
+DELAY = 0.0005 # Lets connect everything with less than DELAY  seconds 
 
 def format_timedelta(td: timedelta) -> str:
     """

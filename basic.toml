@@ -1,0 +1,12 @@
+# F5TTS_v1_Base | E2TTS_Base
+model = "F5TTS_v1_Base"
+ref_audio = "records/one_voice/VOICE/voice_standart.wav"
+# If an empty "", transcribes the reference audio automatically.
+ref_text = "Some call me nature, others call me mother nature."
+gen_text = "All the equipment.All the equipment.All the equipment.All the equipment.All the equipment"
+# File with text to generate. Ignores the text above.
+gen_file = ""
+remove_silence = false
+output_dir = "tests"
+output_file = "infer_cli_basic.wav"
+speed = 2.5

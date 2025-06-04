@@ -15,6 +15,8 @@ import vocabular
 import librosa
 import soundfile as sf
 import numpy as np
+import shutil
+import demucs.separate
 
 def convert_mono_to_stereo(input_path: str, output_path: str):
     """
@@ -166,7 +168,7 @@ def make_video_from(video_path, subtitle, speakers, default_speaker, vocabular_p
         # Generate audio from CSV with varying speeds based on `speed_tts_closest`
         default_speaker_name = speakers["default_speaker_name"]
         default_speaker = speakers[default_speaker_name]
-        f5tts. generate_from_csv_with_speakers(output_with_preview_speeds_csv, directory, speakers, default_speaker, rewrite=False)
+        f5tts.generate_from_csv_with_speakers(output_with_preview_speeds_csv, directory, speakers, default_speaker, rewrite=False)
     
         # Lets get correct time srt csv
     corrected_time_output_speed_csv = directory / f"{subtitle_name}_4_corrected_output_speed.csv"
@@ -187,13 +189,28 @@ def make_video_from(video_path, subtitle, speakers, default_speaker, vocabular_p
         out_ukr_wav = directory / f"{subtitle_name}_5.5_out_ukr.wav"
         if not out_ukr_wav.exists():
             # Save the audio output as a WAV file
-            command = ffmpeg_commands.create_ffmpeg_command(video_path, out_ukr_wav) #, volume_intervals, coef)
+            command = ffmpeg_commands.create_ffmpeg_command(video_path, out_ukr_wav) 
             ffmpeg_commands.run_ffmpeg_command(command)
+        acomponiment = directory / f"{subtitle_name}_5.7_accompaniment_ukr.wav"
+        model_demucs = "mdx_extra"
+        model_folder = directory / model_demucs
+        demucs_folder = model_folder / out_ukr_wav.stem
+        acomponiment_temp = demucs_folder / "no_vocals.wav"
+
+        if not acomponiment_temp.exists():
+            demucs.separate.main(["--jobs", "4","-o", str(directory), "--two-stems", "vocals", "-n", model_demucs, str(out_ukr_wav)])
+        if acomponiment_temp.exists():    
+            shutil.move(demucs_folder /"no_vocals.wav", acomponiment)
+            shutil.rmtree(model_folder)
+            normalize_stereo_audio(acomponiment, acomponiment)
+        # Verify the accompaniment exists and is valid
+        if not acomponiment.exists():
+            raise FileNotFoundError(f"Failed to extract accompaniment: {acomponiment}")
         output_audio = directory / f"{subtitle_name}_6_out_reduced_ukr.wav"
         if not output_audio.exists():
             volume_intervals = ffmpeg_commands.parse_volume_intervals(srt_csv_file)
             normalize_stereo_audio(out_ukr_wav, out_ukr_wav)
-            ffmpeg_commands.adjust_volume_with_librosa(out_ukr_wav, output_audio, volume_intervals, coef)
+            ffmpeg_commands.adjust_stereo_volume_with_librosa(out_ukr_wav, output_audio, volume_intervals, coef,acomponiment)
 
         # Make mix
         # mix_video = os.path.join(directory, f"{subtitle_name}_7_out_mix.mp4")
@@ -242,6 +259,8 @@ def main():
     parser.add_argument('--outfileending', type=str, help="Out video file ending", default="_out_mix.mp4")
     # Add vocabular
     parser.add_argument('--vocabular', type=str, help="Vocabular of transcriptions", default="vocabular.txt")
+    # Add config
+    parser.add_argument('--config', "-c", type=str, help="Config file", default="basic.toml")
 
     # Parse the arguments
     args = parser.parse_args()
