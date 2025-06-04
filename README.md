@@ -1,18 +1,22 @@
 # srt2audiotrack
 
-Make directory with videos and srts to videos with english audiotracks.
+Make from directory with videos and srt files videos with english audiotrack.
 
 For installation:
 
 In Windows:
+
+1. Create conda environment:
 conda create -n f5-tts-demucs python=3.10
 conda activate f5-tts-demucs
-pip install f5-tts-demucs
+
+2. Install f5-tts (https://github.com/SWivid/F5-TTS/tree/main)
+pip install f5-tts
 
 then install demucs (https://github.com/adefossez/demucs)
 python -m pip install -U demucs
 
-
-Run:
-conda activate f5-tts-demucs
+3. Run:
 python main.py --subtitle records\one_voice
+
+In records\one_voice directory will be created videos with suffix "_mix_out.mp4"
