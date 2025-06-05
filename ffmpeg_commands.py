@@ -17,11 +17,9 @@ def parse_volume_intervals(csv_file):
     return volume_intervals
 
 # Create the ffmpeg command to reduce volume in specified intervals
-def create_ffmpeg_command(input_video, output_audio):  #, volume_intervals, k_volume):
+def extract_audio(input_video, output_audio):  #, volume_intervals, k_volume):
     ffmpeg_command = (
         f'ffmpeg -y -i "{input_video}" '
-        # f'-filter_complex "[0:a]{filter_complex}" '
-        # f'-map "[aout]"'
         f'-c:a pcm_s16le "{output_audio}"'
     )
 
@@ -154,42 +152,10 @@ def create_ffmpeg_mix_audio_file_command(audio_file_1, audio_file_2, output_audi
     ]
     return " ".join(ffmpeg_command)
 
-def create_ffmpeg_mix_audio_file_command_list(audio_file_1, audio_file_2, output_audio):
-    """
-    Generate an ffmpeg command to mix two audio files into a single AAC file.
-
-    :param audio_file_1: Path to the first audio file.
-    :param audio_file_2: Path to the second audio file.
-    :param output_audio: Path to the output mixed audio file.
-    :return: ffmpeg command as a string.
-    """
-    ffmpeg_command = [
-        "ffmpeg", "-y", "-i", f"\"{audio_file_1}\"", "-i", f"\"{audio_file_2}\"",
-        "-filter_complex", "[0:a][1:a]amix=inputs=2:duration=first[aout]",
-        "-map", "[aout]", "-c:a", "aac", "-b:a", "320k", "-ar", "44100", f"\"{output_audio}\""
-    ]
-    return ffmpeg_command
-
-def run_ffmpeg_command(command):
+def run(command):
     try:
         # Run the command using subprocess
         result = subprocess.run(command, check=True) #, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         print("FFmpeg command executed successfully.")
-        # print(result.stdout.decode())
     except subprocess.CalledProcessError as e:
         print("An error occurred while running FFmpeg:")
-        # print(e.stderr.decode())
-
-
-if __name__ == "__main__":
-    # Example usage
-    csv_file = "output_speed.csv"
-    input_video = "2_chkd.mp4"
-    output_audio = "output_with_reduced_volume.wav"  # Save the audio output as a WAV file
-
-    volume_intervals = parse_volume_intervals(csv_file)
-    ffmpeg_command = create_ffmpeg_command(input_video, output_audio, volume_intervals, 0.3)
-
-    # Output the generated command
-    print("Generated ffmpeg command:")
-    print(ffmpeg_command)

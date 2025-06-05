@@ -3,22 +3,12 @@ import csv
 import os
 import soundfile as sf
 import numpy as np
+from correct_times import time_to_seconds   
 
 def collect_full_audiotrack(fragments_folder, csv_file, output_audio_file):
     """Concatenate all audio segments in the specified order from csv_file into a full audio track, using start times to add silence."""
     audio_segments = []
     sample_rate = None
-
-    def time_to_seconds(time_str):
-        """Convert timestamp string to seconds, with enhanced error handling."""
-        time_formats = ['%H:%M:%S,%f', '%H:%M:%S.%f']  # Try both comma and dot for milliseconds
-        for time_format in time_formats:
-            try:
-                dt = datetime.strptime(time_str.strip(), time_format)
-                return dt.hour * 3600 + dt.minute * 60 + dt.second + dt.microsecond / 1e6
-            except ValueError:
-                continue
-        raise ValueError(f"Invalid time format: '{time_str}'. Expected format is 'HH:MM:SS,mmm' or 'HH:MM:SS.mmm'.")
 
     with open(csv_file, 'r', encoding='utf-8') as csvfile:
         reader = csv.DictReader(csvfile)
@@ -69,12 +59,3 @@ def collect_full_audiotrack(fragments_folder, csv_file, output_audio_file):
         print(f"Full audio track saved to {output_audio_file}")
     else:
         print("No audio segments to concatenate. Please check the input files.")
-
-
-if __name__ == "__main__":
-    # Example usage
-    output_folder = "2_chkd"
-    csv_file = "corrected_output_speed.csv"
-    output_audio_file = "output_audiotrack.wav"
-
-    collect_full_audiotrack(output_folder, csv_file, output_audio_file)

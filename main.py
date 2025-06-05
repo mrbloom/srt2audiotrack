@@ -173,8 +173,8 @@ def make_video_from(video_path, subtitle, speakers, default_speaker, vocabular_p
         out_ukr_wav = directory / f"{subtitle_name}_5.5_out_ukr.wav"
         if not out_ukr_wav.exists():
             # Save the audio output as a WAV file
-            command = ffmpeg_commands.create_ffmpeg_command(video_path, out_ukr_wav) 
-            ffmpeg_commands.run_ffmpeg_command(command)
+            command = ffmpeg_commands.extract_audio(video_path, out_ukr_wav) 
+            ffmpeg_commands.run(command)
         acomponiment = directory / f"{subtitle_name}_5.7_accompaniment_ukr.wav"
         model_demucs = "mdx_extra"
         model_folder = directory / model_demucs
@@ -202,7 +202,7 @@ def make_video_from(video_path, subtitle, speakers, default_speaker, vocabular_p
         if not mix_video.exists():
             command = ffmpeg_commands.create_ffmpeg_mix_video_file_command(video_path,output_audio, stereo_eng_file, mix_video)
             # command = " ".join(command)
-            ffmpeg_commands.run_ffmpeg_command(command)
+            ffmpeg_commands.run(command)
 
 def fast_rglob(root_dir, extension):
     ext = extension.lstrip('.')
