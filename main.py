@@ -1,24 +1,18 @@
 import argparse
 import os
 from pathlib import Path
-from time import sleep
+
 
 import srt2csv
 import srt2audio
 import correct_times
 import wavs2wav
 import ffmpeg_commands
-
 import vocabular
-
-import soundfile as sf
-import numpy as np
-import shutil
-import demucs.separate
 from wavs2wav import convert_mono_to_stereo, normalize_stereo_audio
 from srt2csv import get_speakers_from_folder, check_texts, check_speeds_csv
 from vocabular import check_vocabular
-from pathlib import Path
+from wavs2wav import extract_acomponiment_or_vocals
 
 
 
@@ -75,21 +69,14 @@ def make_video_from(video_path, subtitle, speakers, default_speaker, vocabular_p
             # Save the audio output as a WAV file
             command = ffmpeg_commands.extract_audio(video_path, out_ukr_wav) 
             ffmpeg_commands.run(command)
-        acomponiment = directory / f"{subtitle_name}_5.7_accompaniment_ukr.wav"
-        model_demucs = "mdx_extra"
-        model_folder = directory / model_demucs
-        demucs_folder = model_folder / out_ukr_wav.stem
-        acomponiment_temp = demucs_folder / "no_vocals.wav"
 
-        if not acomponiment_temp.exists():
-            demucs.separate.main(["--jobs", "4","-o", str(directory), "--two-stems", "vocals", "-n", model_demucs, str(out_ukr_wav)])
-        if acomponiment_temp.exists():    
-            shutil.move(demucs_folder /"no_vocals.wav", acomponiment)
-            shutil.rmtree(model_folder)
-            normalize_stereo_audio(acomponiment, acomponiment)
-        # Verify the accompaniment exists and is valid
+        acomponiment = directory / f"{subtitle_name}_5.7_accompaniment_ukr.wav"
         if not acomponiment.exists():
-            raise FileNotFoundError(f"Failed to extract accompaniment: {acomponiment}")
+            acomponiment_extracted = extract_acomponiment_or_vocals(directory, subtitle_name, out_ukr_wav)
+            normalize_stereo_audio(acomponiment_extracted, acomponiment)
+            os.remove(acomponiment_extracted)
+
+
         output_audio = directory / f"{subtitle_name}_6_out_reduced_ukr.wav"
         if not output_audio.exists():
             volume_intervals = ffmpeg_commands.parse_volume_intervals(srt_csv_file)
