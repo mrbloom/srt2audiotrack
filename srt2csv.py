@@ -5,6 +5,7 @@ import pandas as pd
 import csv
 import srt
 from datetime import timedelta
+from pathlib import Path
 
 DELAY = 0.0005 # Lets connect everything with less than DELAY  seconds 
 
@@ -232,9 +233,56 @@ def add_speed_columns_with_speakers(output_csv_with_speakers, speakers, output_w
             writer.writerow(row)
             print("\t".join(map(str, row.values())))
 
+def get_speakers_from_folder(voice_folder):
+    speakers = {}
+    default_speaker_name = ""
+    for snd_file in Path(voice_folder).glob("*.wav"):
+        snd_file_name = snd_file.stem
+        if default_speaker_name == "":
+            default_speaker_name = snd_file_name
+        speakers[snd_file_name] = {}
+        speakers[snd_file_name]["ref_file"] = snd_file
+        text_file_path = snd_file.with_suffix('.txt')
+        if text_file_path.is_file():
+            with open(text_file_path) as text_file:
+                ref_text = text_file.read().strip()
+                speakers[snd_file_name]["ref_text"] = ref_text
+        
+        speeds_file = Path(voice_folder) / Path(snd_file).stem / "speeds.csv"
+        if speeds_file.is_file():
+            with open(speeds_file) as sf:
+                csv_reader = csv.DictReader(sf)
+                speeds = []
+                durations = []
+                symbol_durations = []
+                for row in csv_reader:
+                    speeds.append(float(row["speed"]))
+                    durations.append(float(row["duration"]))
+                    symbol_durations.append(float(row["symbol_duration"]))
+                speakers[snd_file_name]["speeds"] = speeds
+                speakers[snd_file_name]["durations"] = durations
+                speakers[snd_file_name]["symbol_durations"] = symbol_durations
 
-if __name__ == "__main__":
-    # Usage
-    srt_to_csv('2_chkd.srt', 'output.csv')
-    srt_to_csv_with_full_sentences('output.csv', 'full.csv')
-    add_speed_columns('full.csv', 'speeds.csv', 'output_speed.csv')
+    speakers["default_speaker_name"] = default_speaker_name
+    speakers["speakers_names"] = list(speakers.keys())
+    return speakers
+
+def check_texts(voice_dir):
+    for sound_file in Path(voice_dir).glob("*.wav"):
+        text_file_path = sound_file.with_suffix(".txt")
+        if not text_file_path.is_file():
+            print(f"I need text file {text_file_path}")
+            exit(1)
+    print("All text files are OK!")
+
+def check_speeds_csv(voice_dir):
+    for sound_file in Path(voice_dir).glob("*.wav"):
+        text_file_path = sound_file.with_suffix(".txt")
+        with open(text_file_path) as text_file:
+            text = text_file.read().strip()
+
+        speeds_file = Path(voice_dir) / Path(sound_file).stem / "speeds.csv"
+        if not speeds_file.is_file():
+            srt2audio.F5TTS().generate_speeds_csv(speeds_file, text, sound_file)
+    print("All speeds.csv are OK!")
+
