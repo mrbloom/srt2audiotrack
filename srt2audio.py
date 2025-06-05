@@ -10,12 +10,10 @@ from pathlib import Path
 from omegaconf import OmegaConf
 from importlib.resources import files
 from hydra.utils import get_class
-from pydub import AudioSegment
-import numpy as np
 import librosa
 
 COUNTER_MAX = 10
-REMOVE_SILENCE_TOP_DB = 7
+REMOVE_SILENCE_TOP_DB = 35
 # DEFAULT_SPEED = 1.3
 
 from f5_tts.infer.utils_infer import (
@@ -30,62 +28,6 @@ from f5_tts.infer.utils_infer import (
 )
 from f5_tts.model import DiT, UNetT
 from f5_tts.model.utils import seed_everything
-
-import torchaudio
-
-def remove_silence_edges_torch(wav, sr, trigger_level=REMOVE_SILENCE_TOP_DB):
-    """
-    Remove leading and trailing silence using torchaudio.functional.vad.
-
-    Args:
-        wav (np.ndarray or torch.Tensor): Audio samples (mono).
-        sr (int): Sample rate (Hz).
-        trigger_level (float): VAD aggressiveness; lower is more sensitive.
-
-    Returns:
-        trimmed_wav (np.ndarray): Trimmed audio samples.
-    """
-    # Convert to torch tensor if necessary, ensure float32
-    if not torch.is_tensor(wav):
-        wav = torch.tensor(wav, dtype=torch.float32)
-    if wav.dim() == 1:
-        wav = wav.unsqueeze(0)  # (channels, samples)
-    elif wav.shape[0] > wav.shape[1]:
-        wav = wav.T  # ensure (channels, samples)
-
-    # Torchaudio VAD expects int16 PCM
-    wav_int16 = (wav * 32767.0).clamp(-32768, 32767).to(torch.int16)
-
-    # VAD applied per channel (mono expected)
-    non_silence = torchaudio.functional.vad(wav_int16, sample_rate=sr, trigger_level=trigger_level)
-    
-    # Find nonzero regions
-    nonzero = (non_silence != 0).nonzero(as_tuple=False)
-    if nonzero.numel() == 0:
-        return torch.zeros(0)  # all silence!
-    start = nonzero[0, 1]
-    end = nonzero[-1, 1] + 1  # +1 because slice is exclusive
-
-    trimmed = wav[0, start:end]
-    return trimmed.numpy(), (start, end)
-
-
-from pydub import silence
-
-def remove_silence_edges(audio, silence_threshold=-20):
-    # Remove silence from the start
-    non_silent_start_idx = silence.detect_leading_silence(audio, silence_threshold=silence_threshold)
-    audio = audio[non_silent_start_idx:]
-
-    # Remove silence from the end
-    non_silent_end_duration = audio.duration_seconds
-    for ms in reversed(audio):
-        if ms.dBFS > silence_threshold:
-            break
-        non_silent_end_duration -= 0.001
-    trimmed_audio = audio[: int(non_silent_end_duration * 1000)]
-
-    return trimmed_audio
 
 
 class F5TTS:
@@ -184,18 +126,7 @@ class F5TTS:
         )
 
         if remove_silence:
-            # Convert numpy array to AudioSegment
-            # audio = AudioSegment(
-            #     wav.tobytes(),
-            #     frame_rate=sr,
-            #     sample_width=wav.dtype.itemsize,
-            #     channels=1
-            # )
-            # # Remove silence and convert back to numpy array
-            # audio = remove_silence_edges(audio)   
-            # wav = np.frombuffer(audio.raw_data, dtype=wav.dtype)
-
-            trimmed, index = librosa.effects.trim(wav, top_db=35)
+            trimmed, index = librosa.effects.trim(wav, top_db=REMOVE_SILENCE_TOP_DB)
             print(f"Trimmed from {file_wave} from sample {index[0]} to {index[1]}")
             wav = trimmed
             

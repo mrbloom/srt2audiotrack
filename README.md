@@ -20,3 +20,11 @@ python -m pip install -U demucs
 python main.py --subtitle records\one_voice
 
 In records\one_voice directory will be created videos with suffix "_mix_out.mp4"
+
+Result must be:
+https://fex.net/ru/s/fctovr0
+
+ToDo:
+
+1. Make something with short not-generated segments.
+2. Refactor everything.
