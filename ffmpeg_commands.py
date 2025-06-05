@@ -1,10 +1,9 @@
 import csv
 import subprocess
-import os
 import librosa
 import soundfile as sf
-import shutil
 import numpy as np
+from correct_times import time_to_seconds
 
 # Read CSV file to get volume reduction time intervals
 def parse_volume_intervals(csv_file):
@@ -17,26 +16,8 @@ def parse_volume_intervals(csv_file):
             volume_intervals.append((start_time, end_time))
     return volume_intervals
 
-# Format time to seconds for ffmpeg
-def time_to_seconds(time_str):
-    """Convert timestamp string to seconds."""
-    hours, minutes, seconds = time_str.replace(",", ".").split(":")
-    return float(hours) * 3600 + float(minutes) * 60 + float(seconds)
-
 # Create the ffmpeg command to reduce volume in specified intervals
 def create_ffmpeg_command(input_video, output_audio):  #, volume_intervals, k_volume):
-    # volume_filters = []
-    #
-    # for start_time, end_time in volume_intervals:
-    #     start_seconds = time_to_seconds(start_time)
-    #     end_seconds = time_to_seconds(end_time)
-    #     # Add volume filter for each segment
-    #     volume_filters.append(f"volume={k_volume}:enable='between(t,{start_seconds},{end_seconds})'")
-    #
-    # # Combine all volume filters
-    # filter_complex = ",".join(volume_filters) + "[aout]"
-
-    # Build the full ffmpeg command to extract audio and adjust volume, output as WAV
     ffmpeg_command = (
         f'ffmpeg -y -i "{input_video}" '
         # f'-filter_complex "[0:a]{filter_complex}" '
@@ -46,11 +27,6 @@ def create_ffmpeg_command(input_video, output_audio):  #, volume_intervals, k_vo
 
     return ffmpeg_command
 
-
-def time_to_seconds(time_str):
-    """Convert timestamp string (HH:MM:SS,mmm) to seconds (float)."""
-    hours, minutes, seconds = time_str.replace(",", ".").split(":")
-    return float(hours) * 3600 + float(minutes) * 60 + float(seconds)
 
 def adjust_volume_with_librosa(input_audio, output_audio, volume_intervals, k_volume, transit_time=0.2):
     """

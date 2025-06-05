@@ -19,12 +19,6 @@ import shutil
 import demucs.separate
 
 def convert_mono_to_stereo(input_path: str, output_path: str):
-    """
-    Converts a mono WAV file to stereo by duplicating the mono channel.
-
-    :param input_path: Path to the input mono WAV file.
-    :param output_path: Path to save the output stereo WAV file.
-    """
     # Load mono audio
     audio, sr = librosa.load(input_path, sr=None, mono=True)
 
@@ -37,14 +31,6 @@ def convert_mono_to_stereo(input_path: str, output_path: str):
     print(f"Converted {input_path} to stereo and saved as {output_path}")
 
 def normalize_stereo_audio(input_path: str, output_path: str, target_db: float = -12.0):
-    """
-    Normalizes a stereo audio file to a target decibel level while maintaining the stereo balance.
-
-    :param input_path: Path to the input stereo WAV file.
-    :param output_path: Path to save the normalized stereo WAV file.
-    :param target_db: Target peak decibel level (default: -3.0 dB).
-    """
-    # Load stereo audio
     audio, sr = librosa.load(input_path, sr=None, mono=False)
 
     if audio.ndim == 1:
@@ -72,8 +58,6 @@ def normalize_stereo_audio(input_path: str, output_path: str, target_db: float =
     sf.write(output_path, normalized_audio.T, sr)
 
     print(f"Normalized {input_path} to {target_db} dB per channel and saved as {output_path}")
-
-
 
 
 def get_speakers_from_folder(voice_folder):
