@@ -27,4 +27,5 @@ https://fex.net/ru/s/fctovr0
 ToDo:
 
 1. Make something with short not-generated segments.
-2. Refactor everything.
+2. Test work with single file.
+3. Refactor everything.

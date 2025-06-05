@@ -6,6 +6,7 @@ import csv
 import srt
 from datetime import timedelta
 from pathlib import Path
+from srt2audio import F5TTS
 
 DELAY = 0.0005 # Lets connect everything with less than DELAY  seconds 
 
@@ -283,6 +284,6 @@ def check_speeds_csv(voice_dir):
 
         speeds_file = Path(voice_dir) / Path(sound_file).stem / "speeds.csv"
         if not speeds_file.is_file():
-            srt2audio.F5TTS().generate_speeds_csv(speeds_file, text, sound_file)
+            F5TTS().generate_speeds_csv(speeds_file, text, sound_file)
     print("All speeds.csv are OK!")
 

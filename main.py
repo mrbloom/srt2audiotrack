@@ -1,6 +1,5 @@
 import argparse
 import os
-import csv
 from pathlib import Path
 from time import sleep
 
@@ -12,7 +11,6 @@ import ffmpeg_commands
 
 import vocabular
 
-import librosa
 import soundfile as sf
 import numpy as np
 import shutil
@@ -20,6 +18,7 @@ import demucs.separate
 from wavs2wav import convert_mono_to_stereo, normalize_stereo_audio
 from srt2csv import get_speakers_from_folder, check_texts, check_speeds_csv
 from vocabular import check_vocabular
+from pathlib import Path
 
 
 
@@ -29,7 +28,7 @@ def make_video_from(video_path, subtitle, speakers, default_speaker, vocabular_p
     subtitle_name = subtitle.stem
     out_path = directory / f'{subtitle_name}_0_mod.srt'
     
-    # Modify subtitles using the vocabulary
+    # Modify subtitles using the vocabulary and put it in the filename_folder
     if not out_path.exists():
         vocabular.modify_subtitles_with_vocabular_wholefile(subtitle, vocabular_pth, out_path)
     
@@ -105,7 +104,7 @@ def make_video_from(video_path, subtitle, speakers, default_speaker, vocabular_p
             # command = " ".join(command)
             ffmpeg_commands.run(command)
 
-def fast_rglob(root_dir, extension):
+def fast_rglob(root_dir, extension, exclude_ext): # for network drives
     ext = extension.lstrip('.')
     matches = []
     for dirpath, dirnames, filenames in os.walk(root_dir):
@@ -113,7 +112,9 @@ def fast_rglob(root_dir, extension):
         for file in filenames:
             if file.endswith(f".{ext}"):
                 matches.append(os.path.join(dirpath, file))
-    return matches
+
+    sbt_files = [sbt for sbt in matches if not sbt.endswith(exclude_ext)]
+    return sbt_files
 
 
 
@@ -176,24 +177,11 @@ def main():
         exit(1)
     default_speaker = speakers.get(speakers["default_speaker_name"])
 
-    sbt_files = list(Path(subtitle).rglob(f"*.{srtext.replace('.', '')}"))
-    #sbt_files = fast_rglob(subtitle, srtext)
-
+    sbt_files = fast_rglob(subtitle, srtext, exclude_ext="_0_mod.srt")
     # we need exclude srt modified files that we used for right pronunciation
-    sbt_files = [sbt for sbt in sbt_files if not sbt.name.endswith("_0_mod.srt")]
 
     for subtitle in sbt_files:
-        video_path = subtitle.with_suffix(videoext)
-        ready_video_file_name = subtitle.stem + "_out_mix.mp4"
-        ready_video_path = video_path.parent / ready_video_file_name
-        if video_path.is_file() and not ready_video_path.is_file():
-            make_video_from(video_path,subtitle,speakers,default_speaker,vocabular_pth,coef)
-
-    sbt_files = fast_rglob(subtitle, srtext)
-    # we need exclude srt modified files that we used for right pronunciation
-    sbt_files = [sbt for sbt in sbt_files if not sbt.name.endswith("_0_mod.srt")]
-
-    for subtitle in sbt_files:
+        subtitle = Path(subtitle)
         video_path = subtitle.with_suffix(videoext)
         ready_video_file_name = subtitle.stem + "_out_mix.mp4"
         ready_video_path = video_path.parent / ready_video_file_name
