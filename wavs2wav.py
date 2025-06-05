@@ -4,6 +4,8 @@ import os
 import soundfile as sf
 import numpy as np
 from correct_times import time_to_seconds   
+import librosa
+
 
 def collect_full_audiotrack(fragments_folder, csv_file, output_audio_file):
     """Concatenate all audio segments in the specified order from csv_file into a full audio track, using start times to add silence."""
@@ -59,3 +61,45 @@ def collect_full_audiotrack(fragments_folder, csv_file, output_audio_file):
         print(f"Full audio track saved to {output_audio_file}")
     else:
         print("No audio segments to concatenate. Please check the input files.")
+
+def convert_mono_to_stereo(input_path: str, output_path: str):
+    # Load mono audio
+    audio, sr = librosa.load(input_path, sr=None, mono=True)
+
+    # Duplicate mono channel to create stereo
+    stereo_audio = np.vstack([audio, audio])
+
+    # Save as stereo WAV
+    sf.write(output_path, stereo_audio.T, sr)
+
+    print(f"Converted {input_path} to stereo and saved as {output_path}")
+
+
+def normalize_stereo_audio(input_path: str, output_path: str, target_db: float = -12.0):
+    audio, sr = librosa.load(input_path, sr=None, mono=False)
+
+    if audio.ndim == 1:
+        raise ValueError("The input file is mono. Use a mono-specific normalization function.")
+
+    # Compute RMS loudness for each channel
+    rms_left = np.sqrt(np.mean(audio[0]**2))
+    rms_right = np.sqrt(np.mean(audio[1]**2))
+
+    # Convert RMS to decibel scale
+    rms_db_left = 20 * np.log10(rms_left)
+    rms_db_right = 20 * np.log10(rms_right)
+
+    # Compute gain needed for each channel
+    gain_db_left = target_db - rms_db_left
+    gain_db_right = target_db - rms_db_right
+
+    gain_left = 10 ** (gain_db_left / 20)
+    gain_right = 10 ** (gain_db_right / 20)
+
+    # Apply gain to each channel separately
+    normalized_audio = np.vstack([audio[0] * gain_left, audio[1] * gain_right])
+
+    # Save the normalized stereo audio
+    sf.write(output_path, normalized_audio.T, sr)
+
+    print(f"Normalized {input_path} to {target_db} dB per channel and saved as {output_path}")
