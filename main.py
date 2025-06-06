@@ -93,14 +93,12 @@ def make_video_from(video_path, subtitle, speakers, default_speaker, vocabular_p
 
 def fast_rglob(root_dir, extension, exclude_ext): # for network drives
     ext = extension.lstrip('.')
-    matches = []
-    for dirpath, dirnames, filenames in os.walk(root_dir):
-        print(dirpath,dirnames,filenames)
+    sbt_files = []
+    for dirpath, _, filenames in os.walk(root_dir):
+        # print(dirpath,dirnames,filenames)
         for file in filenames:
-            if file.endswith(f".{ext}"):
-                matches.append(os.path.join(dirpath, file))
-
-    sbt_files = [sbt for sbt in matches if not sbt.endswith(exclude_ext)]
+            if file.endswith(f".{ext}") and not file.endswith(exclude_ext):
+                sbt_files.append(os.path.join(dirpath, file))
     return sbt_files
 
 

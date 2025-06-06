@@ -31,53 +31,127 @@ def calculate_duration(start, end):
     duration = (end_dt - start_dt).total_seconds()
     return duration
 
-def srt_to_csv(srt_file: str, csv_file: str):
-    # 1) Read & parse all subtitles
-    with open(srt_file, 'r', encoding='utf-8') as f:
-        subs = list(srt.parse(f.read()))
-
-    # 2) Open CSV for writing
-    with open(csv_file, 'w', newline='', encoding='utf-8') as csvfile:
+def srt_to_csv(srt_file, csv_file):
+    with open(srt_file, 'r', encoding='utf-8') as srt, open(csv_file, 'w', newline='', encoding='utf-8') as csvfile:
         writer = csv.writer(csvfile, quoting=csv.QUOTE_ALL)
-        writer.writerow([
-            'Number', 'Start Time', 'End Time',
-            'Duration', 'Symbol Duration', 'Text'
-        ])
+        writer.writerow(['Number', 'Start Time', 'End Time', 'Duration', 'Symbol Duration', 'Text'])
 
-        # 3) Iterate subtitles
-        for sub in subs:
-            # Start/end in SRT format
-            start_str = format_timedelta(sub.start)
-            end_str   = format_timedelta(sub.end)
+        subtitle_number = None
+        start_time = None
+        end_time = None
+        subtitle_text = []
 
-            # Duration in seconds
-            duration = (sub.end - sub.start).total_seconds()
+        for line in srt:
+            line = line.strip()
+            if line.isdigit():
+                subtitle_number = line
+            elif re.match(r'\d{2}:\d{2}:\d{2},\d{3} --> \d{2}:\d{2}:\d{2},\d{3}', line):
+                times = line.split(' --> ')
+                start_time = times[0]
+                end_time = times[1]
+            elif line == "":
+                if subtitle_number and start_time and end_time and subtitle_text:
+                    duration = calculate_duration(start_time, end_time)
+                    text = ' '.join(subtitle_text)
+                    symbol_duration = duration / len(text) if len(text) > 0 else 0
+                    writer.writerow([subtitle_number, start_time, end_time, duration, symbol_duration, text])
+                    print("\t".join(map(str, [subtitle_number, start_time, end_time, duration, symbol_duration, text])))
 
-            # Clean up the text: collapse any internal newlines
-            text = sub.content.replace('\n', ' ').strip()
+                subtitle_number = None
+                start_time = None
+                end_time = None
+                subtitle_text = []
+            else:
+                subtitle_text.append(line)
 
-            # Per-character duration
-            symbol_duration = duration / len(text) if text else 0
+        if subtitle_number and start_time and end_time and subtitle_text:
+            duration = calculate_duration(start_time, end_time)
+            text = ' '.join(subtitle_text)
+            symbol_duration = duration / len(text) if len(text) > 0 else 0
+            # writer.writerow([subtitle_number, start_time, end_time, text, duration, symbol_duration])
+            writer.writerow([subtitle_number, start_time, end_time, duration, symbol_duration, text])
 
-            # Write row
-            writer.writerow([
-                sub.index,
-                start_str,
-                end_str,
-                f"{duration:.3f}",
-                f"{symbol_duration:.4f}",
-                text
-            ])
+# def parse_srt_file(srt_file: str):
+#     subtitle_text = []
+#     with open(srt_file, 'r', encoding='utf-8') as f:
+#         for line in f:
+#             line = line.strip()
+            
+#             match line:
+#                 case line if line.isdigit():
+#                     subtitle_number = line
+#                 case line if re.match(r'\d{2}:\d{2}:\d{2},\d{3} --> \d{2}:\d{2}:\d{2},\d{3}', line):
+#                     times = line.split(' --> ')
+#                     start_time = times[0]
+#                     end_time = times[1]
+#                 case "":
+#                     if subtitle_number and start_time and end_time and subtitle_text:
+#                         duration = calculate_duration(start_time, end_time)
+#                         text = ' '.join(subtitle_text)
+#                         symbol_duration = duration / len(text) if len(text) > 0 else 0
+#                         print("\t".join(map(str, [subtitle_number, start_time, end_time, duration, symbol_duration, text])))
 
-            # Also print to console (tab-separated)
-            print("\t".join(map(str, [
-                sub.index,
-                start_str,
-                end_str,
-                f"{duration:.3f}",
-                f"{symbol_duration:.4f}",
-                text
-            ])))
+#                     subtitle_number = None
+#                     start_time = None
+#                     end_time = None
+#                     subtitle_text = []  # Reset subtitle_text for next subtitle
+#                 case _:
+#                     subtitle_text.append(line)
+    
+#     return subtitle_text
+
+# def srt_to_csv(srt_file: str, csv_file: str):
+#     # 1) Read & parse all subtitles
+#     with open(srt_file, 'r', encoding='utf-8') as f:
+#         try:
+#             subs = list(srt.parse(f.read()))
+#         except Exception as e:
+#             print(f"Error parsing SRT file {srt_file}: {e}")
+#             print("Try not use srt module.")
+#             subs = parse_srt_file(srt_file)
+
+#     # 2) Open CSV for writing
+#     with open(csv_file, 'w', newline='', encoding='utf-8') as csvfile:
+#         writer = csv.writer(csvfile, quoting=csv.QUOTE_ALL)
+#         writer.writerow([
+#             'Number', 'Start Time', 'End Time',
+#             'Duration', 'Symbol Duration', 'Text'
+#         ])
+
+#         # 3) Iterate subtitles
+#         for sub in subs:
+#             # Start/end in SRT format
+#             start_str = format_timedelta(sub.start)
+#             end_str   = format_timedelta(sub.end)
+
+#             # Duration in seconds
+#             duration = (sub.end - sub.start).total_seconds()
+
+#             # Clean up the text: collapse any internal newlines
+#             text = sub.content.replace('\n', ' ').strip()
+
+#             # Per-character duration
+#             symbol_duration = duration / len(text) if text else 0
+
+#             # Write row
+#             writer.writerow([
+#                 sub.index,
+#                 start_str,
+#                 end_str,
+#                 f"{duration:.3f}",
+#                 f"{symbol_duration:.4f}",
+#                 text
+#             ])
+
+#             # Also print to console (tab-separated)
+#             print("\t".join(map(str, [
+#                 sub.index,
+#                 start_str,
+#                 end_str,
+#                 f"{duration:.3f}",
+#                 f"{symbol_duration:.4f}",
+#                 text
+#             ])))
 
 
 def srt_to_csv_with_full_sentences(csv_file, full_csv_file, delay_min=DELAY):
