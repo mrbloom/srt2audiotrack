@@ -4,6 +4,7 @@ import librosa
 import soundfile as sf
 import numpy as np
 from correct_times import time_to_seconds
+ACOMPANIMENT_K = 0.3
 
 # Read CSV file to get volume reduction time intervals
 def parse_volume_intervals(csv_file):
@@ -92,7 +93,7 @@ def adjust_stereo_volume_with_librosa(input_audio, output_audio, volume_interval
         end_sample = int(librosa.time_to_samples(float(end_time), sr=sr))
 
         # Apply volume adjustment in the given range for both channels
-        y[:, start_sample:end_sample] =  y[:, start_sample:end_sample] * k_volume + a[:, start_sample:end_sample]*(1-k_volume)*0.5
+        y[:, start_sample:end_sample] =  y[:, start_sample:end_sample] * k_volume + a[:, start_sample:end_sample]*(1-k_volume)*ACOMPANIMENT_K
 
     # Save the modified audio
     sf.write(output_audio, y.T, sr)  # Transpose y to match the expected shape for stereo
