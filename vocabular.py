@@ -97,3 +97,21 @@ def modify_subtitles_with_vocabular(subtitle_path, vocabular_path, output_path):
             # Apply the replacements on the current line
             new_line = apply_replacements(line, replacements)
             outfile.write(new_line)
+
+def modify_subtitles_with_vocabular_text_only(subtitle_path, vocabular_path, output_path):
+    replacements = parse_vocabular_file(vocabular_path)
+
+    with open(subtitle_path, 'r', encoding='utf-8') as infile, \
+         open(output_path, 'w', encoding='utf-8') as outfile:
+
+        for line in infile:
+            line_strip = line.strip()
+
+            # Skip numeric lines (e.g. 1, 2, 3...) or timecodes
+            if line_strip.isdigit() or "-->" in line_strip:
+                outfile.write(line)
+                continue
+
+            # Apply replacements only to actual text lines
+            new_line = apply_replacements(line, replacements)
+            outfile.write(new_line)

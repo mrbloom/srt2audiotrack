@@ -1,0 +1,21 @@
+@echo off
+REM Batch script to activate conda environment, find .srt files, and run the script with N threads
+
+REM Set the path to the folder containing the .srt files
+set "SUBTITLE_FOLDER=\\10.98.100.14\distr\fast_channels\OTERRA\AUDIO_ENG\STANDART_VOICE"
+REM set "SUBTITLE_FOLDER=Z:\fast_channels\OTERRA\AUDIO_ENG\STANDART_VOICE"
+REM Activate Anaconda environment
+CALL C:\ProgramData\anaconda3\Scripts\activate.bat C:\ProgramData\anaconda3
+CALL conda activate f5-tts-demucs
+
+REM Find all .srt files (non-recursively) and run main.py with threading
+setlocal enabledelayedexpansion
+:loop
+
+python main.py --subtitle %SUBTITLE_FOLDER%
+
+goto loop
+REM Deactivate conda environment
+CALL conda deactivate
+
+echo Done!

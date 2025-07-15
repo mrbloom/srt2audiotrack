@@ -24,7 +24,8 @@ def make_video_from(video_path, subtitle, speakers, default_speaker, vocabular_p
     
     # Modify subtitles using the vocabulary and put it in the filename_folder
     if not out_path.exists():
-        vocabular.modify_subtitles_with_vocabular_wholefile(subtitle, vocabular_pth, out_path)
+        # vocabular.modify_subtitles_with_vocabular_wholefile(subtitle, vocabular_pth, out_path)
+        vocabular.modify_subtitles_with_vocabular_text_only(subtitle, vocabular_pth, out_path)
     
     # Convert the modified subtitles to CSV
     srt_csv_file = directory / f'{subtitle_name}_1.0_srt.csv'

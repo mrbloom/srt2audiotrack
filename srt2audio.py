@@ -11,6 +11,10 @@ from omegaconf import OmegaConf
 from importlib.resources import files
 from hydra.utils import get_class
 import librosa
+# from transformers.utils.dummy_pt_objects import Wav2Vec2BertModel
+# from transformers import Wav2Vec2BertModel
+from wav2txt import wav2txt
+import re
 
 COUNTER_MAX = 10
 REMOVE_SILENCE_TOP_DB = 35
@@ -228,20 +232,38 @@ class F5TTS:
                 wav, sr,previous_duration = self.infer_wav(gen_text, start_speed, ref_file, ref_text)
                 break
         return wav, sr, previous_duration
-        
+
+    def clean_text(self,text,replacement = r"[.,!?\-:;’'\"]"):
+        text = text.strip().lower().replace("\n", " ")
+        text = re.sub(replacement, " ", text)
+        text = re.sub(r"\s+", " ", text)  # collapse multiple spaces
+        return text.strip()   
+
+    def is_generated_text_equal_to_subtitles_text(self,wav,subtitles_text):
+        gen_text = wav2txt(wav)
+        gen_text = self.clean_text(gen_text)
+        subtitles_text = self.clean_text(subtitles_text)
+        if gen_text != subtitles_text:
+            print(f"ALARM !!! Generated text: {gen_text} != Subtitles text: {subtitles_text}")
+        return gen_text == subtitles_text,gen_text,subtitles_text 
 
     def generate_from_csv_with_speakers(self, csv_file, output_folder, speakers, default_speaker, rewrite=False):
         os.makedirs(output_folder, exist_ok=True)
-
-        with open(csv_file, 'r', encoding='utf-8') as csvfile:
+        filename_errors_csv = f"{str(csv_file)[:-4]}_errors.csv"
+        with open(csv_file, 'r', encoding='utf-8') as csvfile, open(filename_errors_csv, 'w', newline='', encoding='utf-8') as csv_writer:
             reader = csv.DictReader(csvfile)
+            writer_filednames = [*reader.fieldnames, "gen_error","whisper_text","subtitle_text"]
+            writer = csv.DictWriter(csv_writer, fieldnames=writer_filednames, delimiter=';')
+            writer.writeheader()
             generated_segments = []
+            generated_texts = []
             for i, row in enumerate(reader):
                 file_wave = os.path.join(output_folder, f"segment_{i + 1}.wav")
                 if not rewrite and os.path.exists(file_wave):
                     continue
                 duration = float(row['Duration'])
                 gen_text = row['Text']
+                generated_texts.append(gen_text)
                 previous_speed = float(row.get('TTS Speed Closest', 1.0))  # Read the speed from `speed_tts_closest`, default to 1.0 if missing
 
                 try:
@@ -260,10 +282,19 @@ class F5TTS:
 
                 print(f"Generated WAV-{i} with symbol duration {previous_duration}")
                 generated_segments.append((wav, file_wave, sr)) 
-            for wav, file_wave, sr in generated_segments:
+                is_equal,gen_text,subtitles_text = self.is_generated_text_equal_to_subtitles_text(wav,gen_text)
+                writer.writerow({**row, "gen_error": "1" if not is_equal else "0", "whisper_text": gen_text, "subtitle_text": subtitles_text})
+            # Reset to the beginning of the file
+            csvfile.seek(0)
+            # Re-create the DictReader to re-parse the header row
+            reader = csv.DictReader(csvfile)      
+            
+            for i, row in enumerate(reader):
+                wav, file_wave, sr = generated_segments[i]
+                generated_texts.append(row['Text'])
                 sf.write(file_wave, wav, sr)
                 print(f"Saved WAV as {file_wave}")
-
+                    
         print(f"All audio segments generated and saved in {output_folder}")
 
 
