@@ -15,6 +15,7 @@ import librosa
 # from transformers import Wav2Vec2BertModel
 from wav2txt import wav2txt
 import re
+import difflib
 
 COUNTER_MAX = 10
 REMOVE_SILENCE_TOP_DB = 35
@@ -239,20 +240,25 @@ class F5TTS:
         text = re.sub(r"\s+", " ", text)  # collapse multiple spaces
         return text.strip()   
 
+    def similarity(self,gen_text,subtitles_text):
+        return difflib.SequenceMatcher(None, gen_text, subtitles_text).ratio()
+
+
     def is_generated_text_equal_to_subtitles_text(self,wav,subtitles_text):
         gen_text = wav2txt(wav)
         gen_text = self.clean_text(gen_text)
         subtitles_text = self.clean_text(subtitles_text)
+        similarity = self.similarity(gen_text,subtitles_text)
         if gen_text != subtitles_text:
-            print(f"ALARM !!! Generated text: {gen_text} != Subtitles text: {subtitles_text}")
-        return gen_text == subtitles_text,gen_text,subtitles_text 
+            print(f"ALARM !!! Generated text: {gen_text} != Subtitles text: {subtitles_text} \n Similarity: {similarity}")
+        return gen_text == subtitles_text,gen_text,subtitles_text,similarity 
 
     def generate_from_csv_with_speakers(self, csv_file, output_folder, speakers, default_speaker, rewrite=False):
         os.makedirs(output_folder, exist_ok=True)
         filename_errors_csv = f"{str(csv_file)[:-4]}_errors.csv"
         with open(csv_file, 'r', encoding='utf-8') as csvfile, open(filename_errors_csv, 'w', newline='', encoding='utf-8') as csv_writer:
             reader = csv.DictReader(csvfile)
-            writer_filednames = [*reader.fieldnames, "gen_error","whisper_text","subtitle_text"]
+            writer_filednames = [*reader.fieldnames, "similarity","gen_error","whisper_text","subtitle_text"]
             writer = csv.DictWriter(csv_writer, fieldnames=writer_filednames, delimiter=';')
             writer.writeheader()
             generated_segments = []
@@ -280,10 +286,10 @@ class F5TTS:
                 
                 wav, sr, previous_duration = self.generate_wav_if_longer(wav, sr, gen_text, duration, previous_duration, previous_speed, ref_file, ref_text, i)
 
-                print(f"Generated WAV-{i} with symbol duration {previous_duration}")
+                print(f"Generated WAV-{i} with symbol duration {previous_duration}")        
                 generated_segments.append((wav, file_wave, sr)) 
-                is_equal,gen_text,subtitles_text = self.is_generated_text_equal_to_subtitles_text(wav,gen_text)
-                writer.writerow({**row, "gen_error": "1" if not is_equal else "0", "whisper_text": gen_text, "subtitle_text": subtitles_text})
+                is_equal,gen_text,subtitles_text, similarity = self.is_generated_text_equal_to_subtitles_text(wav,gen_text)
+                writer.writerow({**row, "similarity": f"{similarity:.2f}", "gen_error": "1" if not is_equal else "0", "whisper_text": gen_text, "subtitle_text": subtitles_text})
             # Reset to the beginning of the file
             csvfile.seek(0)
             # Re-create the DictReader to re-parse the header row
