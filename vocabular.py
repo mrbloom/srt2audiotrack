@@ -1,5 +1,6 @@
 import re
 from pathlib import Path
+from functools import reduce
 
 def check_vocabular(voice_dir):
     vocabular_pth = Path(voice_dir) / "vocabular.txt"
@@ -73,36 +74,18 @@ def modify_subtitles_with_vocabular_wholefile(subtitle_path, vocabular_path, out
 
     return text
 
-# def apply_replacements(line, replacements,whole_words=True):
-#     """
-#     Applies each replacement (old->new) in order to a single line.
-#     Because we sorted by length in parse_vocabular_file,
-#     longer strings get replaced first.
-#     """
-#     if whole_words:
-#         for old, new in replacements:
-#             # Escape 'old' to avoid special regex characters
-#             pattern = fr'\b{re.escape(old)}\b'
-#             line = re.sub(pattern, new, line)
-#         return line
-#     else:
-#         for old, new in replacements:
-#             line = line.replace(old, new)
-#         return line
-
 def apply_replacements(line, replacements, whole_words=True):
-    if whole_words:
-        # Build a single regex pattern: \b(old1|old2|...)\b
-        pattern = r'\b(' + '|'.join(re.escape(old) for old, _ in replacements) + r')\b'
-        # Map of old -> new
-        repl_dict = dict(replacements)
-        # Use a function to perform replacement based on match
-        return re.sub(pattern, lambda m: repl_dict[m.group(0)], line)
-    else:
-        # Non-word-boundary mode: use simple reduce or loop
-        for old, new in replacements:
+    """
+    Applies replacements sequentially in the order given (longest first),
+    with optional word boundary matching.
+    """
+    for old, new in replacements:
+        if whole_words:
+            pattern = fr'\b{re.escape(old)}\b'
+            line = re.sub(pattern, new, line)
+        else:
             line = line.replace(old, new)
-        return line
+    return line
 
 def modify_subtitles_with_vocabular(subtitle_path, vocabular_path, output_path):
     """
