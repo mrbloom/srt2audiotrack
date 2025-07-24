@@ -15,6 +15,7 @@ import librosa
 # from transformers import Wav2Vec2BertModel
 from wav2txt import wav2txt
 import re
+import srt2csv
 import difflib
 
 COUNTER_MAX = 10
@@ -290,6 +291,7 @@ class F5TTS:
                 generated_segments.append((wav, file_wave, sr)) 
                 is_equal,gen_text,subtitles_text, similarity = self.is_generated_text_equal_to_subtitles_text(wav,gen_text)
                 writer.writerow({**row, "similarity": f"{similarity:.2f}", "gen_error": "1" if not is_equal else "0", "whisper_text": gen_text, "subtitle_text": subtitles_text})
+            
             # Reset to the beginning of the file
             csvfile.seek(0)
             # Re-create the DictReader to re-parse the header row
@@ -300,7 +302,10 @@ class F5TTS:
                 generated_texts.append(row['Text'])
                 sf.write(file_wave, wav, sr)
                 print(f"Saved WAV as {file_wave}")
-                    
+        excel_file_name = os.path.basename(filename_errors_csv.replace(".csv", ".xlsx"))
+        parent_of_parent = os.path.dirname(os.path.dirname(filename_errors_csv))
+        excel_file = os.path.join(parent_of_parent, excel_file_name)
+        srt2csv.csv2excel(filename_errors_csv, excel_file, sort_column="similarity", values_to_hide=["1"], columns_to_hide=[], ascending=True)                    
         print(f"All audio segments generated and saved in {output_folder}")
 
 

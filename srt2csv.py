@@ -6,7 +6,8 @@ import csv
 import srt
 from datetime import timedelta
 from pathlib import Path
-from srt2audio import F5TTS
+import srt2audio
+
 
 DELAY = 0.0005 # Lets connect everything with less than DELAY  seconds 
 
@@ -385,6 +386,30 @@ def check_speeds_csv(voice_dir):
 
         speeds_file = Path(voice_dir) / Path(sound_file).stem / "speeds.csv"
         if not speeds_file.is_file():
-            F5TTS().generate_speeds_csv(speeds_file, text, sound_file)
+            srt2audio.F5TTS().generate_speeds_csv(speeds_file, text, sound_file)
     print("All speeds.csv are OK!")
+
+def csv2excel(csv_file, excel_file, sort_column="similarity", values_to_hide=["1.00"], columns_to_hide=[], ascending=False, delimiter=';'):
+    df = pd.read_csv(csv_file, delimiter=delimiter)
+    
+    # Clean up column names (remove any extra whitespace)
+    df.columns = df.columns.str.strip()
+    
+    # Only sort if the sort_column exists in the DataFrame
+    if sort_column in df.columns:
+        df = df.sort_values(by=sort_column, ascending=ascending)
+    
+    # Remove specified columns
+    for column in columns_to_hide:
+        if column in df.columns:  # Only drop if column exists
+            df = df.drop(column, axis=1)
+    
+    # Drop rows where sort_column contains any value from values_to_hide
+    if sort_column in df.columns and values_to_hide:
+        mask = ~df[sort_column].astype(str).isin([str(v) for v in values_to_hide])
+        df = df[mask]
+    
+    # Save to Excel
+    df.to_excel(excel_file, index=False)
+    
 
