@@ -257,7 +257,8 @@ class F5TTS:
     def generate_from_csv_with_speakers(self, csv_file, output_folder, speakers, default_speaker, rewrite=False):
         os.makedirs(output_folder, exist_ok=True)
         filename_errors_csv = f"{str(csv_file)[:-4]}_errors.csv"
-        with open(csv_file, 'r', encoding='utf-8') as csvfile, open(filename_errors_csv, 'w', newline='', encoding='utf-8') as csv_writer:
+        with open(csv_file, 'r', encoding='utf-8') as csvfile, \
+             open(filename_errors_csv, 'w', newline='', encoding='utf-8') as csv_writer:
             reader = csv.DictReader(csvfile)
             writer_filednames = [*reader.fieldnames, "similarity","gen_error","whisper_text","subtitle_text"]
             writer = csv.DictWriter(csv_writer, fieldnames=writer_filednames, delimiter=';')
@@ -302,10 +303,11 @@ class F5TTS:
                 generated_texts.append(row['Text'])
                 sf.write(file_wave, wav, sr)
                 print(f"Saved WAV as {file_wave}")
-        excel_file_name = os.path.basename(filename_errors_csv.replace(".csv", ".xlsx"))
+        excel_file_name = os.path.basename(filename_errors_csv)
+        excel_file_name = excel_file_name.split("_3.0_")[0] + ".xlsx"
         parent_of_parent = os.path.dirname(os.path.dirname(filename_errors_csv))
         excel_file = os.path.join(parent_of_parent, excel_file_name)
-        srt2csv.csv2excel(filename_errors_csv, excel_file, sort_column="similarity", values_to_hide=["1"], columns_to_hide=[], ascending=True)                    
+        srt2csv.csv2excel(filename_errors_csv, excel_file)                    
         print(f"All audio segments generated and saved in {output_folder}")
 
 

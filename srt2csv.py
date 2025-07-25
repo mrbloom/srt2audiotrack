@@ -389,27 +389,28 @@ def check_speeds_csv(voice_dir):
             srt2audio.F5TTS().generate_speeds_csv(speeds_file, text, sound_file)
     print("All speeds.csv are OK!")
 
-def csv2excel(csv_file, excel_file, sort_column="similarity", values_to_hide=["1.00"], columns_to_hide=[], ascending=False, delimiter=';'):
+def take_first(dct):
+    return next(iter(dct.items()))
+
+def csv2excel(csv_file, excel_file, 
+                delimiter=';', 
+                sort_columns=["similarity"], ascending=True, 
+                drop_rows_with=({"gen_error":["0"]},), 
+                drop_columns=["Duration","Symbol Duration","TTS Symbol Duration","TTS Speed Closest","Speaker"]):
     df = pd.read_csv(csv_file, delimiter=delimiter)
     
-    # Clean up column names (remove any extra whitespace)
-    df.columns = df.columns.str.strip()
+    df.drop(drop_columns, axis=1, inplace=True)
+
+    match drop_rows_with:
+        case tuple():
+            for drop_row in drop_rows_with:
+                column_name, values = take_first(drop_row)
+                df = df[~df[column_name].astype(str).isin(values)]                
+        case dict():
+            column_name, values = take_first(drop_rows_with)
+            df = df[~df[column_name].astype(str).isin(values)]
     
-    # Only sort if the sort_column exists in the DataFrame
-    if sort_column in df.columns:
-        df = df.sort_values(by=sort_column, ascending=ascending)
-    
-    # Remove specified columns
-    for column in columns_to_hide:
-        if column in df.columns:  # Only drop if column exists
-            df = df.drop(column, axis=1)
-    
-    # Drop rows where sort_column contains any value from values_to_hide
-    if sort_column in df.columns and values_to_hide:
-        mask = ~df[sort_column].astype(str).isin([str(v) for v in values_to_hide])
-        df = df[mask]
-    
-    # Save to Excel
+    df = df.sort_values(by=sort_columns, ascending=ascending)
     df.to_excel(excel_file, index=False)
     
 
